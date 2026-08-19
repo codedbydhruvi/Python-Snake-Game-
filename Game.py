@@ -61,9 +61,10 @@ score_display.write(
 # -----------------------------
 game_over_display = turtle.Turtle()
 game_over_display.speed(0)
-game_over_display.color("white")
+game_over_display.color("red")
 game_over_display.penup()
 game_over_display.hideturtle()
+game_over_display.goto(0, 0)
 
 # -----------------------------
 # Movement Functions
@@ -103,6 +104,18 @@ def move():
 
 
 # -----------------------------
+# Update Score
+# -----------------------------
+def update_score():
+    score_display.clear()
+    score_display.write(
+        "Score: {}    High Score: {}".format(score, high_score),
+        align="center",
+        font=("Arial", 18, "bold")
+    )
+
+
+# -----------------------------
 # Restart Game
 # -----------------------------
 def restart_game():
@@ -118,19 +131,20 @@ def restart_game():
     head.goto(0, 0)
     head.direction = "stop"
 
+    # Reset food
+    food.goto(
+        random.randrange(-280, 281, 20),
+        random.randrange(-240, 241, 20)
+    )
+
     # Reset score
     score = 0
 
-    # Remove game over message
+    # Remove game-over message
     game_over_display.clear()
 
     # Update score
-    score_display.clear()
-    score_display.write(
-        "Score: 0    High Score: " + str(high_score),
-        align="center",
-        font=("Arial", 18, "bold")
-    )
+    update_score()
 
 
 # -----------------------------
@@ -141,10 +155,37 @@ def exit_game():
 
 
 # -----------------------------
+# Game Over
+# -----------------------------
+def game_over():
+    global score, high_score
+
+    # Update high score
+    if score > high_score:
+        high_score = score
+
+    head.direction = "stop"
+
+    game_over_display.clear()
+    game_over_display.write(
+        "GAME OVER!\n\n"
+        "Score: {}\n"
+        "High Score: {}\n\n"
+        "Press R to Restart\n"
+        "Press Q to Exit".format(score, high_score),
+        align="center",
+        font=("Arial", 18, "bold")
+    )
+
+    update_score()
+
+
+# -----------------------------
 # Keyboard Controls
 # -----------------------------
 screen.listen()
 
+# Arrow Keys
 screen.onkeypress(go_up, "Up")
 screen.onkeypress(go_down, "Down")
 screen.onkeypress(go_left, "Left")
@@ -173,3 +214,79 @@ while True:
     # -------------------------
     if (
         head.xcor() > 290
+        or head.xcor() < -290
+        or head.ycor() > 290
+        or head.ycor() < -290
+    ):
+        game_over()
+
+        # Wait until restart or exit
+        while head.direction == "stop":
+            screen.update()
+            time.sleep(0.1)
+
+    # -------------------------
+    # Food Collision
+    # -------------------------
+    if head.distance(food) < 20:
+
+        # Move food to random position
+        food.goto(
+            random.randrange(-280, 281, 20),
+            random.randrange(-240, 241, 20)
+        )
+
+        # Create new body segment
+        new_segment = turtle.Turtle()
+        new_segment.speed(0)
+        new_segment.shape("square")
+        new_segment.color("green")
+        new_segment.penup()
+
+        segments.append(new_segment)
+
+        # Increase score
+        score += 10
+
+        if score > high_score:
+            high_score = score
+
+        update_score()
+
+    # -------------------------
+    # Move Snake Body
+    # -------------------------
+    for index in range(len(segments) - 1, 0, -1):
+        x = segments[index - 1].xcor()
+        y = segments[index - 1].ycor()
+
+        segments[index].goto(x, y)
+
+    # First body segment follows head
+    if len(segments) > 0:
+        segments[0].goto(
+            head.xcor(),
+            head.ycor()
+        )
+
+    # -------------------------
+    # Move Snake Head
+    # -------------------------
+    move()
+
+    # -------------------------
+    # Body Collision
+    # -------------------------
+    for segment in segments:
+        if segment.distance(head) < 20:
+            game_over()
+
+            while head.direction == "stop":
+                screen.update()
+                time.sleep(0.1)
+
+    # -------------------------
+    # Game Speed
+    # -------------------------
+    time.sleep(0.1)
+
