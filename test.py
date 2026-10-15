@@ -1,0 +1,647 @@
+import turtle
+import random
+import time
+
+# =========================================================
+# SCREEN
+# =========================================================
+
+screen = turtle.Screen()
+screen.title("🐍 Snake Quest - Advanced Snake Game")
+screen.bgcolor("#101820")
+screen.setup(width=800, height=700)
+screen.tracer(0)
+
+# =========================================================
+# GAME VARIABLES
+# =========================================================
+
+score = 0
+high_score = 0
+level = 1
+lives = 3
+
+delay = 0.12
+
+paused = False
+game_over_flag = False
+
+segments = []
+obstacles = []
+
+# =========================================================
+# BORDER
+# =========================================================
+
+border = turtle.Turtle()
+border.speed(0)
+border.color("#00FFFF")
+border.pensize(4)
+border.penup()
+border.goto(-350, -280)
+border.pendown()
+
+for _ in range(2):
+    border.forward(700)
+    border.left(90)
+    border.forward(560)
+    border.left(90)
+
+border.penup()
+border.hideturtle()
+
+# =========================================================
+# SNAKE HEAD
+# =========================================================
+
+head = turtle.Turtle()
+head.speed(0)
+head.shape("square")
+head.color("#39FF14")
+head.penup()
+head.goto(0, 0)
+
+head.direction = "stop"
+
+# =========================================================
+# SNAKE EYES
+# =========================================================
+
+left_eye = turtle.Turtle()
+left_eye.shape("circle")
+left_eye.color("white")
+left_eye.shapesize(0.25)
+left_eye.penup()
+
+right_eye = turtle.Turtle()
+right_eye.shape("circle")
+right_eye.color("white")
+right_eye.shapesize(0.25)
+right_eye.penup()
+
+# =========================================================
+# NORMAL FOOD
+# =========================================================
+
+food = turtle.Turtle()
+food.speed(0)
+food.shape("circle")
+food.color("#FF3131")
+food.shapesize(0.8)
+food.penup()
+
+food.goto(100, 100)
+
+# =========================================================
+# BONUS FOOD
+# =========================================================
+
+bonus_food = turtle.Turtle()
+bonus_food.speed(0)
+bonus_food.shape("triangle")
+bonus_food.color("#FFD700")
+bonus_food.shapesize(0.9)
+bonus_food.penup()
+bonus_food.hideturtle()
+
+bonus_active = False
+bonus_timer = 0
+
+# =========================================================
+# SCORE DISPLAY
+# =========================================================
+
+score_display = turtle.Turtle()
+score_display.speed(0)
+score_display.color("white")
+score_display.penup()
+score_display.hideturtle()
+score_display.goto(0, 305)
+
+# =========================================================
+# MESSAGE DISPLAY
+# =========================================================
+
+message = turtle.Turtle()
+message.speed(0)
+message.color("#FFD700")
+message.penup()
+message.hideturtle()
+
+# =========================================================
+# POSITION FUNCTION
+# =========================================================
+
+def random_position():
+
+    x = random.randrange(-320, 321, 20)
+    y = random.randrange(-240, 241, 20)
+
+    return x, y
+
+
+# =========================================================
+# SCORE UPDATE
+# =========================================================
+
+def update_score():
+
+    score_display.clear()
+
+    score_display.write(
+        "Score: {}    High Score: {}    Level: {}    Lives: {}".format(
+            score,
+            high_score,
+            level,
+            lives
+        ),
+        align="center",
+        font=("Arial", 16, "bold")
+    )
+
+
+# =========================================================
+# EYE POSITION
+# =========================================================
+
+def update_eyes():
+
+    x = head.xcor()
+    y = head.ycor()
+
+    if head.direction == "right":
+
+        left_eye.goto(x + 7, y + 7)
+        right_eye.goto(x + 7, y - 7)
+
+    elif head.direction == "left":
+
+        left_eye.goto(x - 7, y + 7)
+        right_eye.goto(x - 7, y - 7)
+
+    elif head.direction == "up":
+
+        left_eye.goto(x - 7, y + 7)
+        right_eye.goto(x + 7, y + 7)
+
+    elif head.direction == "down":
+
+        left_eye.goto(x - 7, y - 7)
+        right_eye.goto(x + 7, y - 7)
+
+    else:
+
+        left_eye.goto(x - 7, y + 7)
+        right_eye.goto(x + 7, y + 7)
+
+
+# =========================================================
+# MOVEMENT
+# =========================================================
+
+def go_up():
+
+    if head.direction != "down" and not paused and not game_over_flag:
+        head.direction = "up"
+
+
+def go_down():
+
+    if head.direction != "up" and not paused and not game_over_flag:
+        head.direction = "down"
+
+
+def go_left():
+
+    if head.direction != "right" and not paused and not game_over_flag:
+        head.direction = "left"
+
+
+def go_right():
+
+    if head.direction != "left" and not paused and not game_over_flag:
+        head.direction = "right"
+
+
+def move():
+
+    if head.direction == "up":
+        head.sety(head.ycor() + 20)
+
+    elif head.direction == "down":
+        head.sety(head.ycor() - 20)
+
+    elif head.direction == "left":
+        head.setx(head.xcor() - 20)
+
+    elif head.direction == "right":
+        head.setx(head.xcor() + 20)
+
+    update_eyes()
+
+
+# =========================================================
+# CREATE SNAKE BODY
+# =========================================================
+
+def create_segment():
+
+    segment = turtle.Turtle()
+    segment.speed(0)
+    segment.shape("square")
+    segment.color("#228B22")
+    segment.penup()
+
+    segments.append(segment)
+
+
+# =========================================================
+# CREATE OBSTACLES
+# =========================================================
+
+def create_obstacles():
+
+    for obstacle in obstacles:
+        obstacle.hideturtle()
+
+    obstacles.clear()
+
+    number = 4 + (level * 2)
+
+    for _ in range(number):
+
+        obstacle = turtle.Turtle()
+        obstacle.speed(0)
+        obstacle.shape("square")
+        obstacle.color("#8A2BE2")
+        obstacle.penup()
+
+        x, y = random_position()
+
+        # Don't place obstacles near the snake
+        while abs(x) < 120 and abs(y) < 120:
+            x, y = random_position()
+
+        obstacle.goto(x, y)
+        obstacles.append(obstacle)
+
+
+# =========================================================
+# BONUS FOOD
+# =========================================================
+
+def create_bonus_food():
+
+    global bonus_active
+    global bonus_timer
+
+    x, y = random_position()
+
+    bonus_food.goto(x, y)
+    bonus_food.showturtle()
+
+    bonus_active = True
+    bonus_timer = 60
+
+
+# =========================================================
+# RESET SNAKE
+# =========================================================
+
+def reset_snake():
+
+    head.goto(0, 0)
+    head.direction = "stop"
+
+    for segment in segments:
+        segment.goto(1000, 1000)
+
+    segments.clear()
+
+    update_eyes()
+
+
+# =========================================================
+# PAUSE
+# =========================================================
+
+def pause_game():
+
+    global paused
+
+    if game_over_flag:
+        return
+
+    paused = not paused
+
+    message.clear()
+
+    if paused:
+
+        message.goto(0, 0)
+
+        message.write(
+            "GAME PAUSED\n\nPress P to Continue",
+            align="center",
+            font=("Arial", 24, "bold")
+        )
+
+
+# =========================================================
+# GAME OVER
+# =========================================================
+
+def game_over():
+
+    global game_over_flag
+
+    game_over_flag = True
+    head.direction = "stop"
+
+    message.clear()
+    message.goto(0, 20)
+
+    message.write(
+        "GAME OVER\n\n"
+        "Score: {}\n"
+        "High Score: {}\n"
+        "Level: {}\n\n"
+        "Press R to Restart\n"
+        "Press Q to Exit".format(
+            score,
+            high_score,
+            level
+        ),
+        align="center",
+        font=("Arial", 20, "bold")
+    )
+
+
+# =========================================================
+# LOSE LIFE
+# =========================================================
+
+def lose_life():
+
+    global lives
+
+    lives -= 1
+    update_score()
+
+    if lives <= 0:
+
+        game_over()
+
+    else:
+
+        reset_snake()
+        time.sleep(0.5)
+
+
+# =========================================================
+# RESTART
+# =========================================================
+
+def restart_game():
+
+    global score
+    global level
+    global lives
+    global delay
+    global paused
+    global game_over_flag
+    global bonus_active
+
+    score = 0
+    level = 1
+    lives = 3
+
+    delay = 0.12
+
+    paused = False
+    game_over_flag = False
+
+    bonus_active = False
+    bonus_food.hideturtle()
+
+    message.clear()
+
+    reset_snake()
+
+    food.goto(random_position())
+
+    create_obstacles()
+
+    update_score()
+
+
+# =========================================================
+# EXIT
+# =========================================================
+
+def exit_game():
+
+    screen.bye()
+
+
+# =========================================================
+# KEYBOARD CONTROLS
+# =========================================================
+
+screen.listen()
+
+# Arrow keys
+screen.onkeypress(go_up, "Up")
+screen.onkeypress(go_down, "Down")
+screen.onkeypress(go_left, "Left")
+screen.onkeypress(go_right, "Right")
+
+# WASD
+screen.onkeypress(go_up, "w")
+screen.onkeypress(go_down, "s")
+screen.onkeypress(go_left, "a")
+screen.onkeypress(go_right, "d")
+
+# Game controls
+screen.onkeypress(pause_game, "p")
+screen.onkeypress(restart_game, "r")
+screen.onkeypress(exit_game, "q")
+
+# =========================================================
+# INITIAL SETUP
+# =========================================================
+
+create_obstacles()
+update_score()
+
+# =========================================================
+# MAIN GAME LOOP
+# =========================================================
+
+while True:
+
+    screen.update()
+
+    # -----------------------------------------------------
+    # GAME OVER
+    # -----------------------------------------------------
+
+    if game_over_flag:
+
+        time.sleep(0.1)
+        continue
+
+    # -----------------------------------------------------
+    # PAUSE
+    # -----------------------------------------------------
+
+    if paused:
+
+        time.sleep(0.1)
+        continue
+
+    # -----------------------------------------------------
+    # MOVE BODY
+    # -----------------------------------------------------
+
+    for i in range(len(segments) - 1, 0, -1):
+
+        x = segments[i - 1].xcor()
+        y = segments[i - 1].ycor()
+
+        segments[i].goto(x, y)
+
+    if len(segments) > 0:
+
+        segments[0].goto(
+            head.xcor(),
+            head.ycor()
+        )
+
+    # -----------------------------------------------------
+    # MOVE HEAD
+    # -----------------------------------------------------
+
+    move()
+
+    # -----------------------------------------------------
+    # WALL COLLISION
+    # -----------------------------------------------------
+
+    if (
+        head.xcor() > 330
+        or head.xcor() < -330
+        or head.ycor() > 260
+        or head.ycor() < -260
+    ):
+
+        lose_life()
+        continue
+
+    # -----------------------------------------------------
+    # NORMAL FOOD
+    # -----------------------------------------------------
+
+    if head.distance(food) < 20:
+
+        food.goto(random_position())
+
+        create_segment()
+
+        score += 10
+
+        # Increase level
+        new_level = (score // 50) + 1
+
+        if new_level > level:
+
+            level = new_level
+
+            delay = max(0.04, delay - 0.01)
+
+            create_obstacles()
+
+        # Chance of bonus food
+        if random.randint(1, 4) == 1:
+
+            create_bonus_food()
+
+        if score > high_score:
+
+            high_score = score
+
+        update_score()
+
+    # -----------------------------------------------------
+    # BONUS FOOD
+    # -----------------------------------------------------
+
+    if bonus_active:
+
+        if head.distance(bonus_food) < 20:
+
+            score += 30
+
+            bonus_food.hideturtle()
+
+            bonus_active = False
+
+            if score > high_score:
+                high_score = score
+
+            update_score()
+
+        bonus_timer -= 1
+
+        if bonus_timer <= 0:
+
+            bonus_food.hideturtle()
+            bonus_active = False
+
+    # -----------------------------------------------------
+    # OBSTACLE COLLISION
+    # -----------------------------------------------------
+
+    collision = False
+
+    for obstacle in obstacles:
+
+        if head.distance(obstacle) < 20:
+
+            collision = True
+            break
+
+    if collision:
+
+        lose_life()
+        continue
+
+    # -----------------------------------------------------
+    # BODY COLLISION
+    # -----------------------------------------------------
+
+    collision = False
+
+    for segment in segments:
+
+        if segment.distance(head) < 18:
+
+            collision = True
+            break
+
+    if collision:
+
+        lose_life()
+        continue
+
+    # -----------------------------------------------------
+    # SCREEN UPDATE
+    # -----------------------------------------------------
+
+    screen.update()
+
+    # -----------------------------------------------------
+    # SPEED
+    # -----------------------------------------------------
+
+    time.sleep(delay)
